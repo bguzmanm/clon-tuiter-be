@@ -1,26 +1,58 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTuitDto } from './dto/create-tuit.dto';
-import { UpdateTuitDto } from './dto/update-tuit.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Repository } from "typeorm";
+import { Tuit } from './tuit.entity';
+import { CreateTuitDto } from "./dto";
+import { UpdateTuitDto } from "./dto";
+
+import { InjectRepository } from "@nestjs/typeorm";
+
 
 @Injectable()
 export class TuitsService {
-  create(createTuitDto: CreateTuitDto) {
-    return 'This action adds a new tuit';
+  constructor(
+    @InjectRepository(Tuit) private readonly tuitRepository: Repository<Tuit>
+  ) {
+  }
+  
+  async create({ message, email, user }: CreateTuitDto) {
+    const tuit: Tuit = await this.tuitRepository.create({message, email, user});
+    return this.tuitRepository.save(tuit);
   }
 
-  findAll() {
-    return `This action returns all tuits`;
+  async findAll(): Promise<Tuit[]> {
+    return await this.tuitRepository.find({
+      order: {
+        id: {direction: "DESC"}
+      }
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} tuit`;
+  async findOne(id: number): Promise<Tuit> {
+    const tuit: Tuit = await this.tuitRepository.findOne({
+      where: { id }
+    });
+    if (!tuit){
+      throw new NotFoundException('Tuit not found');
+    }
+    return tuit;
   }
 
-  update(id: number, updateTuitDto: UpdateTuitDto) {
-    return `This action updates a #${id} tuit`;
+  async update(id: number, { message }: UpdateTuitDto) {
+    const tuit: Tuit = await this.tuitRepository.preload({
+      id, message
+    });
+    if (!tuit){
+      throw  new NotFoundException('Tuit not found');
+    }
+    return tuit;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} tuit`;
+  async remove(id: number) {
+    const tuit: Tuit = await this.tuitRepository.findOneById(id);
+    if (!tuit){
+      throw new NotFoundException('Tuit not found');
+    }
+    await this.tuitRepository.remove(tuit);
   }
 }
+
